@@ -7,23 +7,41 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-    - name: Install cross-compilation tools
+    - name: Install base build tools
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           ninja-build \
           pkg-config \
-          libglib2.0-dev \
+          git \
+          build-essential \
+          python3-pip \
+          python3-venv \
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
           libpixman-1-dev \
           libepoxy-dev \
           libsdl2-dev \
-          libvirglrenderer-dev \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu \
-          python3-pip \
-          python3-venv
+          libvirglrenderer-dev
 
-    - name: Install modern meson (QEMU 11.0.0 requires >=1.5.0)
+    - name: Build and install glib for ARM64 from source
+      run: |
+        wget https://download.gnome.org/sources/glib/2.82/glib-2.82.2.tar.xz
+        tar -xf glib-2.82.2.tar.xz
+        cd glib-2.82.2
+        mkdir build && cd build
+        meson setup .. \
+          --cross-file /dev/null \
+          --prefix=/usr/aarch64-linux-gnu \
+          --libdir=lib \
+          --default-library=both \
+          -Dtests=false \
+          -Dselinux=disabled \
+          -Dlibmount=disabled
+        ninja
+        sudo ninja install
+
+    - name: Install modern meson
       run: |
         pip3 install --break-system-packages meson
         echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -35,13 +53,14 @@ jobs:
         ref: v11.0.0
         fetch-depth: 1
 
+    - name: Set up pkg-config environment
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
+        echo "PKG_CONFIG_LIBDIR=/usr/aarch64-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
+
     - name: Configure QEMU (static build for ARM64)
       run: |
         mkdir -p build && cd build
-        PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
-        PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig \
-        CC=aarch64-linux-gnu-gcc \
-        CXX=aarch64-linux-gnu-g++ \
         ../configure \
           --target-list=aarch64-softmmu \
           --cross-prefix=aarch64-linux-gnu- \
@@ -62,7 +81,6 @@ jobs:
       run: |
         file build/qemu-system-aarch64
         strings build/qemu-system-aarch64 | grep -q "virgl" && echo "✅ VirGL enabled" || echo "⚠️ VirGL not found"
-        echo "Binary size: $(du -h build/qemu-system-aarch64 | cut -f1)"
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
