@@ -20,8 +20,13 @@ jobs:
           libvirglrenderer-dev \
           gcc-aarch64-linux-gnu \
           g++-aarch64-linux-gnu \
-          python3-venv \
-          meson
+          python3-pip \
+          python3-venv
+
+    - name: Install modern meson (QEMU 11.0.0 requires >=1.5.0)
+      run: |
+        pip3 install --break-system-packages meson
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Checkout QEMU 11.0.0
       uses: actions/checkout@v4
@@ -29,11 +34,6 @@ jobs:
         repository: qemu/qemu
         ref: v11.0.0
         fetch-depth: 1
-
-- name: Install modern meson
-  run: |
-    pip3 install --user meson
-    echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Configure QEMU (static build for ARM64)
       run: |
@@ -61,7 +61,8 @@ jobs:
     - name: Verify binary
       run: |
         file build/qemu-system-aarch64
-        strings build/qemu-system-aarch64 | grep -i "virgl" && echo "✅ VirGL enabled" || echo "⚠️ VirGL not found"
+        strings build/qemu-system-aarch64 | grep -q "virgl" && echo "✅ VirGL enabled" || echo "⚠️ VirGL not found"
+        echo "Binary size: $(du -h build/qemu-system-aarch64 | cut -f1)"
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
