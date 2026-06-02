@@ -1,49 +1,61 @@
-name: Build QEMU for ARM64
+name: Build Static QEMU 11.0.0 for AArch64
 
 on:
-  workflow_dispatch:  # Позволяет запускать вручную
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm  # Нативный ARM64 раннер
-
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout QEMU source
-        uses: actions/checkout@v4
-        with:
-          repository: qemu/qemu
-          fetch-depth: 1
+    - name: Install cross-compilation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          pkg-config \
+          libglib2.0-dev \
+          libpixman-1-dev \
+          libepoxy-dev \
+          libsdl2-dev \
+          libvirglrenderer-dev \
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
+          python3-venv \
+          meson
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ninja-build \
-            libglib2.0-dev \
-            libpixman-1-dev \
-            libepoxy-dev \
-            libsdl2-dev \
-            libgtk-3-dev \
-            libvirglrenderer-dev
+    - name: Checkout QEMU 11.0.0
+      uses: actions/checkout@v4
+      with:
+        repository: qemu/qemu
+        ref: v11.0.0
+        fetch-depth: 1
 
-      - name: Configure QEMU
-        run: |
-          mkdir build
-          cd build
-          ../configure \
-            --target-list=aarch64-softmmu \
-            --enable-sdl \
-            --enable-opengl \
-            --enable-virglrenderer \
-            --disable-werror
+    - name: Configure QEMU (static build for ARM64)
+      run: |
+        mkdir -p build && cd build
+        ../configure \
+          --target-list=aarch64-softmmu \
+          --cross-prefix=aarch64-linux-gnu- \
+          --enable-sdl \
+          --enable-opengl \
+          --enable-virglrenderer \
+          --enable-vnc \
+          --enable-kvm \
+          --static \
+          --disable-werror
 
-      - name: Build QEMU
-        run: |
-          cd build
-          make -j$(nproc)
+    - name: Build QEMU
+      run: |
+        cd build
+        make -j$(nproc)
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: qemu-system-aarch64
-          path: build/qemu-system-aarch64
+    - name: Verify binary
+      run: |
+        file build/qemu-system-aarch64
+        strings build/qemu-system-aarch64 | grep -i "virgl" && echo "✅ VirGL enabled" || echo "⚠️ VirGL not found"
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: qemu-static-11.0.0-aarch64
+        path: build/qemu-system-aarch64
