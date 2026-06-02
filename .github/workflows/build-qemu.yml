@@ -30,6 +30,11 @@ jobs:
         ref: v11.0.0
         fetch-depth: 1
 
+- name: Install modern meson
+  run: |
+    pip3 install --user meson
+    echo "$HOME/.local/bin" >> $GITHUB_PATH
+
     - name: Configure QEMU (static build for ARM64)
       run: |
         mkdir -p build && cd build
