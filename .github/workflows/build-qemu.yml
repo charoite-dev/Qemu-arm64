@@ -24,8 +24,19 @@ jobs:
           libsdl2-dev \
           libvirglrenderer-dev
 
+    - name: Install modern meson
+      run: |
+        pip3 install --user meson
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Verify meson installation
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        meson --version
+
     - name: Build and install glib for ARM64 from source
       run: |
+        export PATH="$HOME/.local/bin:$PATH"
         wget https://download.gnome.org/sources/glib/2.82/glib-2.82.2.tar.xz
         tar -xf glib-2.82.2.tar.xz
         cd glib-2.82.2
@@ -40,11 +51,6 @@ jobs:
           -Dlibmount=disabled
         ninja
         sudo ninja install
-
-    - name: Install modern meson
-      run: |
-        pip3 install --break-system-packages meson
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Checkout QEMU 11.0.0
       uses: actions/checkout@v4
