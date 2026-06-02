@@ -30,6 +30,11 @@ jobs:
         ref: v11.0.0
         fetch-depth: 1
 
+    - name: Set up environment for cross-compilation
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+        echo "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+
     - name: Configure QEMU (static build for ARM64)
       run: |
         mkdir -p build && cd build
